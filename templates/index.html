@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload XLSX with Date</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- jQuery UI CSS for Datepicker -->
+    <link href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2 class="text-center">Upload XLSX File with Date</h2>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="form-row align-items-center">
+                <div class="col-auto">
+                    <label for="datepicker">Select Date:</label>
+                    <input type="text" class="form-control mb-2" id="datepicker" name="date" placeholder="Select date" required>
+                </div>
+                <div class="col-auto">
+                    <label for="fileInput">Upload File:</label>
+                    <input type="file" class="form-control-file mb-2" id="fileInput" name="file" accept=".xlsx, .xls, .csv" required>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary mb-2 mt-4">Submit</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Modal para arquivo incorreto -->
+    <div class="modal fade" id="errorModal" tabindex="-1" role="dialog" aria-labelledby="errorModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="errorModalLabel">Unsupported File</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    The selected file format is not supported. Please upload an XLSX, XLS, or CSV file.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para mensagem de resultado -->
+    <div class="modal fade" id="resultModal" tabindex="-1" role="dialog" aria-labelledby="resultModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="resultModalLabel">Upload Result</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="resultMessage">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- jQuery and jQuery UI JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        $(function() {
+            $("#datepicker").datepicker({
+                dateFormat: "yy-mm-dd"
+            });
+
+            $("#uploadForm").on("submit", function(event) {
+                event.preventDefault();
+
+                var fileInput = $("#fileInput")[0];
+                var filePath = fileInput.value;
+                var allowedExtensions = /(\.xlsx|\.xls|\.csv)$/i;
+
+                if (!allowedExtensions.exec(filePath)) {
+                    $("#errorModal").modal('show');
+                    fileInput.value = '';
+                    return false;
+                }
+
+                var formData = new FormData(this);
+                var token = "seu_secret_key_aqui"; // Substitua por seu token
+
+                // Verifica se o arquivo já foi enviado na data selecionada
+                $.ajax({
+                    url: '/check_upload',
+                    type: 'POST',
+                    headers: {
+                        'x-access-token': token
+                    },
+                    data: {
+                        filename: fileInput.files[0].name,
+                        date: $("#datepicker").val()
+                    },
+                    success: function(response) {
+                        if (response.exists) {
+                            $("#resultMessage").text("A file with the same name has already been uploaded for the selected date.");
+                            $("#resultModal").modal('show');
+                        } else {
+                            // Se o arquivo não foi enviado, envia o formulário
+                            $.ajax({
+                                url: '/upload',
+                                type: 'POST',
+                                headers: {
+                                    'x-access-token': token
+                                },
+                                data: formData,
+                                processData: false,
+                                contentType: false,
+                                success: function(response) {
+                                    $("#resultMessage").text(response.message);
+                                    $("#resultModal").modal('show');
+                                },
+                                error: function(response) {
+                                    $("#resultMessage").text(response.responseJSON.error || response.responseJSON.message);
+                                    $("#resultModal").modal('show');
+                                }
+                            });
+                        }
+                    },
+                    error: function(response) {
+                        $("#resultMessage").text(response.responseJSON.error || response.responseJSON.message);
+                        $("#resultModal").modal('show');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
